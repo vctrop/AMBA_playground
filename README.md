@@ -1,4 +1,5 @@
-# apb3_requester
+# AMBA 3 APB requester block
+
 Requester (master) for the AMBA 3 APB protocol
 
 The hardware described in this repository is licensed under the CERN Open Hardware License S v2, as described below.
