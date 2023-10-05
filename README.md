@@ -3,7 +3,7 @@
 Design and experimentation with nodes in the AMBA protocol
 
 Currently implemented:
--- APB requester which can command AMBA 2 and AMBA 3 peripherals simultaneously.
+- APB requester which can command AMBA 2 and AMBA 3 peripherals simultaneously.
 
 Copyright Centro Espacial ITA (Instituto Tecnológico de Aeronáutica) 2023. 
 This source describes Open Hardware and is licensed under the CERN-OHLS v2.
