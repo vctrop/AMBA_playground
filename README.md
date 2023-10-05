@@ -1,6 +1,6 @@
 # AMBA playground
 
-Design and experimentation with nodes in the AMBA protocol
+Design and experimentation with nodes using the AMBA protocol
 
 Currently implemented:
 - APB requester which can command AMBA 2 and AMBA 3 peripherals simultaneously.

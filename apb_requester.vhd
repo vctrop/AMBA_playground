@@ -83,7 +83,7 @@ architecture behavioral of apb_requester is
 	--
 	signal Sraccess_to_Swidle_s : std_logic_vector(NUM_PERIPH-1 downto 0);
 	signal Sraccess_to_Sridle_s : std_logic_vector(NUM_PERIPH-1 downto 0);
-	signal Swaccess_to_Sridle   : std_logic_vector(NUM_PERIPH-1 downto 0);
+	signal Swaccess_to_Sridle_s : std_logic_vector(NUM_PERIPH-1 downto 0);
 
   -- Configuration-specific constants
 	-- CAUTION: MUST BE MODIFIED IN CASE OF MODIFYING GENERICS
@@ -147,7 +147,7 @@ begin
 					-- APB3 WRITE TRANSACTION - ACCESS STATE
 					when Swrite_access =>
 						-- Next state logic
-						if Swaccess_to_Sridle(int_sel) = '1' then
+						if Swaccess_to_Sridle_s(int_sel) = '1' then
 							reg_state <= Sread_idle;
 						else
 							reg_state <= Swrite_access;
@@ -161,12 +161,9 @@ begin
 	-- AMBA version handling:
 	-- Bit i in AMBA_VERSION indicates the version of the i-th peripheral (0 for AMBA 2, 1 for AMBA 3)
 	-- APB 3 considers pready in the state transition, while APB 2 does not 
-	GEN_AMBA_VER: for i in 0 to NUM_PERIPH - 1 generate	
-		Sraccess_to_Swidle_s(i) <= '1' when reg_state = Sread_access and (AMBA_VERSION_C(i) = '0' or (pready_i(i) = '1' and pslverr_i(i) = '0')) else '0';
-		Sraccess_to_Sridle_s(i) <= '1' when reg_state = Sread_access and (AMBA_VERSION_C(i) = '1' and pready_i(i) = '1' and pslverr_i(i) = '1') else '0';
-		-- Here, APB 3 write transactions ignore pslverr
-		Swaccess_to_Sridle(i)   <= '1' when reg_state = Swrite_access and (AMBA_VERSION_C(i) = '0' or pready_i(i) = '1') else '0';
-	end generate;
+	Sraccess_to_Swidle_s <= (not AMBA_VERSION_C) or (pready_i and (not pslverr_i)) when reg_state = Sread_access else (others => '0');
+	Sraccess_to_Sridle_s <= AMBA_VERSION_C and pready_i and pslverr_i when reg_state = Sread_access else (others => '0');
+	Swaccess_to_Sridle_s   <= (not AMBA_VERSION_C) or pready_i when reg_state = Swrite_access else (others => '0');
 
 	-- Hardwired interrupt priority encoder
 	-- TODO: implement generic solution (w/ NUM_PERIPH)
