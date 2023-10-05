@@ -22,9 +22,15 @@ use work.slv_array_pkg.all;
 
 entity apb_requester is
 	generic (
-		NUM_COMPLETERS : natural := 2;                 -- Number of peripherals that the requester shall service manage
-		DATA_WIDTH     : natural := DATA_WIDTH_pkg;    -- Width of the data bus
-		ADDR_WIDTH     : natural := ADDR_WIDTH_pkg     -- Width of the address bus
+		-- Number of peripherals that the requester shall service manage
+		NUM_PERIPH   : natural := NUM_PERIPH_pkg;
+		-- Width of the data bus
+		DATA_WIDTH   : natural := DATA_WIDTH_pkg;
+		-- Width of the address bus
+		ADDR_WIDTH   : natural := ADDR_WIDTH_pkg;
+		-- AMBA version of each peripheral, indexed by the interruption priority encoder
+		-- At index i, 1-value bit means AMBA 3 and 0-value bit means AMBA 2
+		AMBA_VERSION : std_logic_vector(MAX_NUM_PERIPH_pkg-1 downto 0) := (others => '1')
 	);
 	port (
 		clk  : in std_logic;          -- Clock
@@ -32,18 +38,18 @@ entity apb_requester is
 		
 		-- APB3 REQUESTER SIGNALS
 		paddr_o   : out std_logic_vector(ADDR_WIDTH-1 downto 0);
-		psel_o    : out std_logic_vector(NUM_COMPLETERS-1 downto 0);
+		psel_o    : out std_logic_vector(NUM_PERIPH-1 downto 0);
 		penable_o : out std_logic;
 		pwrite_o  : out std_logic;
 		pwdata_o  : out std_logic_vector(DATA_WIDTH-1 downto 0);
 		
 		-- APB3 COMPLETER SIGNALS
-		pready_i  : in std_logic_vector(NUM_COMPLETERS-1 downto 0);
-		prdata_i  : in slv_array_t(NUM_COMPLETERS-1 downto 0);
-		pslverr_i : in std_logic_vector(NUM_COMPLETERS-1 downto 0);
+		pready_i  : in std_logic_vector(NUM_PERIPH-1 downto 0);
+		prdata_i  : in slv_array_t(NUM_PERIPH-1 downto 0);
+		pslverr_i : in std_logic_vector(NUM_PERIPH-1 downto 0);
 		
 		-- Interrupt bus
-		interrupt_i : in std_logic_vector(NUM_COMPLETERS-1 downto 0)
+		interrupt_i : in std_logic_vector(NUM_PERIPH-1 downto 0)
 	);
 end apb_requester;
 
@@ -63,7 +69,7 @@ architecture behavioral of apb_requester is
 
 	-- Input registers
 	signal reg_prdata    : std_logic_vector(DATA_WIDTH-1 downto 0);
-	signal reg_interrupt : std_logic_vector(NUM_COMPLETERS-1 downto 0);
+	signal reg_interrupt : std_logic_vector(NUM_PERIPH-1 downto 0);
 
 	-- FSM state register
 	signal reg_state : fsm_state_t;
@@ -71,15 +77,21 @@ architecture behavioral of apb_requester is
 	-- Inverted version of the data read from peripheral
 	signal prdata_inv_s : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-	-- Interrupt priority encoder index
-	signal interrupt_sel : natural range 0 to NUM_COMPLETERS-1; 	
+	-- Selector from the interrupt priority encoder
+	signal int_sel : natural range 0 to NUM_PERIPH-1; 	
+	
+	--
+	signal Sraccess_to_Swidle_s : std_logic_vector(NUM_PERIPH-1 downto 0);
+	signal Sraccess_to_Sridle_s : std_logic_vector(NUM_PERIPH-1 downto 0);
+	signal Swaccess_to_Sridle   : std_logic_vector(NUM_PERIPH-1 downto 0);
 
-	-- 
-	constant ADDRESS_PERIPHERAL0 : std_logic_vector(DATA_WIDTH-1 downto 0) := x"00000001";
-	constant ADDRESS_PERIPHERAL1 : std_logic_vector(DATA_WIDTH-1 downto 0) := x"000000FF";
-
+  -- Configuration-specific constants
+	-- CAUTION: MUST BE MODIFIED IN CASE OF MODIFYING GENERICS
+	constant ADDRESS_PERIPHERAL0_C : std_logic_vector(DATA_WIDTH-1 downto 0) := x"00000001";
+	constant ADDRESS_PERIPHERAL1_C : std_logic_vector(DATA_WIDTH-1 downto 0) := x"000000FF";
+	constant AMBA_VERSION_C        : std_logic_vector(NUM_PERIPH-1 downto 0) := AMBA_VERSION(NUM_PERIPH-1 downto 0);
+	
 begin
-
 	-- 
 	CONTROL_FSM: process(clk)
 	begin
@@ -110,11 +122,11 @@ begin
 					-- APB3 READ TRANSACTION - ACCESS STATE 
 					when Sread_access =>
 						-- Next state logic
-						-- Read transactions take pslverr into acount
-						if pready_i(interrupt_sel) = '1' and pslverr_i(interrupt_sel) = '0' then
-						  reg_prdata <= prdata_i(interrupt_sel);
+						-- APB 3 considers pready and pslverr in the state transition, while APB 2 does not 
+						if Sraccess_to_Swidle_s(int_sel) = '1' then
+							reg_prdata <= prdata_i(int_sel);
 							reg_state <= Swrite_idle;
-						elsif pready_i(interrupt_sel) = '1' and pslverr_i(interrupt_sel) = '1' then
+						elsif Sraccess_to_Sridle_s(int_sel) = '1' then
 							reg_state <= Sread_idle;
 						else
 							reg_state <= Sread_access;
@@ -135,8 +147,7 @@ begin
 					-- APB3 WRITE TRANSACTION - ACCESS STATE
 					when Swrite_access =>
 						-- Next state logic
-						-- Write transactions ignore pslverr for now
-						if pready_i(interrupt_sel) = '1' then
+						if Swaccess_to_Sridle(int_sel) = '1' then
 							reg_state <= Sread_idle;
 						else
 							reg_state <= Swrite_access;
@@ -147,19 +158,28 @@ begin
 		end if;
 	end process;
 
+	-- AMBA version handling:
+	-- Bit i in AMBA_VERSION indicates the version of the i-th peripheral (0 for AMBA 2, 1 for AMBA 3)
+	-- APB 3 considers pready in the state transition, while APB 2 does not 
+	GEN_AMBA_VER: for i in 0 to NUM_PERIPH - 1 generate	
+		Sraccess_to_Swidle_s(i) <= '1' when reg_state = Sread_access and (AMBA_VERSION_C(i) = '0' or (pready_i(i) = '1' and pslverr_i(i) = '0')) else '0';
+		Sraccess_to_Sridle_s(i) <= '1' when reg_state = Sread_access and (AMBA_VERSION_C(i) = '1' and pready_i(i) = '1' and pslverr_i(i) = '1') else '0';
+		-- Here, APB 3 write transactions ignore pslverr
+		Swaccess_to_Sridle(i)   <= '1' when reg_state = Swrite_access and (AMBA_VERSION_C(i) = '0' or pready_i(i) = '1') else '0';
+	end generate;
+
 	-- Hardwired interrupt priority encoder
-	-- TODO: implement generic solution (w/ NUM_COMPLETERS)
-	interrupt_sel <= 1 when reg_interrupt(1) = '1' else 0;
+	-- TODO: implement generic solution (w/ NUM_PERIPH)
+	int_sel <= 1 when reg_interrupt(1) = '1' else 0;
 	
 	-- Control outputs
-	psel_o    <= (interrupt_sel => '1', others => '0') when reg_state = Sread_setup or reg_state = Swrite_setup 
-	                                                     or reg_state = Sread_access or reg_state = Swrite_access else
-	             (others => '0');
+	psel_o    <= (int_sel => '1', others => '0') when reg_state = Sread_setup or reg_state = Swrite_setup 
+	                                               or reg_state = Sread_access or reg_state = Swrite_access else (others => '0');
 	penable_o <= '1' when reg_state = Sread_access or reg_state = Swrite_access else '0';
 	pwrite_o  <= '1' when reg_state = Swrite_setup or reg_state = Swrite_access else '0';
 	
 	-- Address (combinational and hardwired)
-	paddr_o   <= ADDRESS_PERIPHERAL0 when interrupt_sel = 0 else ADDRESS_PERIPHERAL1;
+	paddr_o   <= ADDRESS_PERIPHERAL0_C when int_sel = 0 else ADDRESS_PERIPHERAL1_C;
 	
 	-- Registered outputs
 	pwdata_o  <= reg_pwdata;

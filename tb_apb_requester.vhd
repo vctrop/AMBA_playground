@@ -23,7 +23,7 @@ end tb_apb_requester;
 architecture behavioral of tb_apb_requester is
 
 	-- 
-	constant NUM_COMPLETERS : natural := 2;
+	constant NUM_PERIPH : natural := 2;
 	constant DATA_WIDTH : natural := 32;
 	constant ADDR_WIDTH : natural := 32;
 	--
@@ -34,26 +34,26 @@ architecture behavioral of tb_apb_requester is
 	signal rstn : std_logic := '0';
 	
 	-- APB Requester signals
-	signal pready_s    : std_logic_vector(NUM_COMPLETERS-1 downto 0) := (others => '0');
-	signal pslverr_s   : std_logic_vector(NUM_COMPLETERS-1 downto 0) := (others => '0');
-	signal prdata_s    : slv_array_t(NUM_COMPLETERS-1 downto 0);
+	signal pready_s    : std_logic_vector(NUM_PERIPH-1 downto 0) := (others => '0');
+	signal pslverr_s   : std_logic_vector(NUM_PERIPH-1 downto 0) := (others => '0');
+	signal prdata_s    : slv_array_t(NUM_PERIPH-1 downto 0);
 	
 	-- APB completer signals
 	signal paddr_s   : std_logic_vector(ADDR_WIDTH-1 downto 0);
-	signal psel_s    : std_logic_vector(NUM_COMPLETERS-1 downto 0);
+	signal psel_s    : std_logic_vector(NUM_PERIPH-1 downto 0);
 	signal penable_s : std_logic;
 	signal pwrite_s  : std_logic;
 	signal pwdata_s  : std_logic_vector(DATA_WIDTH-1 downto 0);
 	
 	-- 
 	signal data_s      : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
-	signal interrupt_s : std_logic_vector(NUM_COMPLETERS-1 downto 0) := (others => '0');
+	signal interrupt_s : std_logic_vector(NUM_PERIPH-1 downto 0) := (others => '0');
 	
 begin
 
 	DUV: entity work.apb_requester(behavioral)
 	generic map(
-		NUM_COMPLETERS => NUM_COMPLETERS,
+		NUM_PERIPH => NUM_PERIPH,
 		DATA_WIDTH => DATA_WIDTH,
 		ADDR_WIDTH => ADDR_WIDTH
 	)
@@ -86,7 +86,7 @@ begin
 	clk <= not clk after half_clk_period;
 	rstn <= '1' after 5*clk_period;
 	
-	-- Does not work with generic NUM_COMPLETERS, DATA_WIDTH and ADDR_WIDTH
+	-- Does not work with generic NUM_PERIPH, DATA_WIDTH and ADDR_WIDTH
 	process
 	begin
 	wait until rstn = '1';

@@ -17,9 +17,16 @@ library ieee;
 	
 package slv_array_pkg is
 
-    constant DATA_WIDTH_pkg : natural := 32;
-    constant ADDR_WIDTH_pkg : natural := 32;
-    type slv_array_t is array (natural range <>) of std_logic_vector(DATA_WIDTH_pkg-1 downto 0); 
+	-- 
+	constant MAX_DATA_WIDTH_pkg : natural := 32;
+	constant MAX_ADDR_WIDTH_pkg : natural := 32;
+	constant MAX_NUM_PERIPH_pkg : natural := 16;
+	-- 
+	constant DATA_WIDTH_pkg : natural := 32;
+	constant ADDR_WIDTH_pkg : natural := 32;
+	constant NUM_PERIPH_pkg : natural := 2;
+
+	type slv_array_t is array (natural range <>) of std_logic_vector(DATA_WIDTH_pkg-1 downto 0); 
 
 end package slv_array_pkg;
 
