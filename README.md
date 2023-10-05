@@ -1,11 +1,11 @@
-# AMBA 3 APB requester block
+# AMBA playground
 
-Requester (master) for the AMBA 3 APB protocol
+Design and experimentation with nodes in the AMBA protocol
 
-The hardware described in this repository is licensed under the CERN Open Hardware License S v2, as described below.
+Currently implemented:
+-- APB requester which can command AMBA 2 and AMBA 3 peripherals simultaneously.
 
-Copyright Centro Espacial ITA (Instituto Tecnológico de Aeronáutica) 2023.
-
+Copyright Centro Espacial ITA (Instituto Tecnológico de Aeronáutica) 2023. 
 This source describes Open Hardware and is licensed under the CERN-OHLS v2.
 
 You may redistribute and modify this documentation and make products using it under the terms of the CERN-OHL-S v2 (https:/cern.ch/cern-ohl).

@@ -1,4 +1,4 @@
--- Copyright ITA Space Center (Instituto Tecnológico de Aeronáutica).
+-- Copyright Centro Espacial ITA (Instituto Tecnológico de Aeronáutica).
 -- This source describes Open Hardware and is licensed under the CERN-OHLS v2
 -- You may redistribute and modify this documentation and make products
 -- using it under the terms of the CERN-OHL-S v2 (https:/cern.ch/cern-ohl).
